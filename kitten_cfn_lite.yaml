@@ -1,44 +1,44 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: |  #cfn lite da yaziyoruz yaml dosyamizi
+Description: | 
   Cloudformation Template for kittens carousel static website deploy on s3 through cloudfront and route 53
-Parameters: #parameter iki tane yazacagiz. birisi hosted zonu cekecek, ikinci olarak ise
-  DomainName: # hosted zone yazip cikandan parameter type yazani aldik 
+Parameters: 
+  DomainName:  
     Description: DNS Name of existing Amazon Route 53 hosted zone ex. clarusway.us
-    Type: AWS::Route53::HostedZone::Id  #type otomatik geldi
-  KittensDomainName: # parameter yazip ikinci cikani sectik
+    Type: AWS::Route53::HostedZone::Id  
+  KittensDomainName: 
     Description: Full domain name for the App. ex. kittens.clarusway.us
     Type: String
-    AllowedPattern: (?!-)[a-zA-Z0-9-.]{1,63}(?<!-) #domain name yazarken kullanici basinda sonunca ? ! vs yazamaz, 63 karaktere kadar yazilabilir adanzye0dan9a kadar isim verilebilir
+    AllowedPattern: (?!-)[a-zA-Z0-9-.]{1,63}(?<!-) 
 
 Resources:
-  KittensBucket: #s3 bucket yazip ilk cikani ekliyoruz (burdaki ismi kendimiz verdik)
+  KittensBucket: 
     Type: AWS::S3::Bucket
     Properties:  
-      AccessControl: PublicRead  #access control public read yaptik.Cunki disardan herkse ulasabilsin istiyoruz
-      BucketName: !Ref KittensDomainName #yukarda parametre olarak yazmiostik ref ile cekecez, burdaki amazondun sayfasindaki ismimiz
+      AccessControl: PublicRead  
+      BucketName: !Ref KittensDomainName 
       WebsiteConfiguration:
-        IndexDocument: index.html  # burda sadece index document kullanacagiz error documentimiz yok
-  KittensBucketPolicy: #bucketPolicy yi olusturuyoruz. s3BucketPolicy yazinca cikiyor, kittens diye biz isim belirtiyoruz. Bucket olustutken policy de olusturuyorduk)
+        IndexDocument: index.html  
+  KittensBucketPolicy: 
     Type: AWS::S3::BucketPolicy
     Properties:
-      Bucket: !Ref KittensBucket  #burdaki benim cloudformationdaki isim burdaki bucket ismini resource dan veriyoruz burdaki cloudformationdaki bucket name
-      PolicyDocument:   #bucket policy olusturuyoruz
+      Bucket: !Ref KittensBucket  
+      PolicyDocument:   
         Statement:
-          - Sid: PublicReadforStaticWebSite #Sourceid . buraya isim verdik
+          - Sid: PublicReadforStaticWebSite 
             Effect: Allow
-            Principal: '*' #bu sekilde hersey iizn ver demek ama * koymaliyiz
-            Action: s3:GetObject #bucketdaki objclerimizin cekilmesini istiyoruz
-            Resource: !Join ['', ['arn:aws:s3:::', !Ref 'KittensBucket', /*]] # biz bucket polici olustururken kendi bucketimizin ARN noisu ile koyuyorduk. Join bosluk olmadan string ifadeyi al, bucketnameizinin onundeki arn ile sonra bosluk birakmdan yuklarda belirttigimiz bucketimizi birlestir.
-  KittensCertificate: #certificatemanager:certificate diye olani seciyoruz
+            Principal: '*' 
+            Action: s3:GetObject 
+            Resource: !Join ['', ['arn:aws:s3:::', !Ref 'KittensBucket', /*]] 
+  KittensCertificate: 
     Type: AWS::CertificateManager::Certificate
     Properties:
-      CertificateTransparencyLoggingPreference: ENABLED #security issue olarak enable ediyoruz istemedigimiz hatali sertifikalar kayit olmasin diye
-      DomainName: !Ref KittensDomainName  # RequiredBuraya olusturacagimiz domain name gelsin istiyoruz
+      CertificateTransparencyLoggingPreference: ENABLED 
+      DomainName: !Ref KittensDomainName  
       DomainValidationOptions:
         - DomainName: !Ref KittensDomainName 
-          HostedZoneId: !Ref DomainName #
-      ValidationMethod: DNS #dogrulama icin mail veya dns metodu vardi, DNS i seciyoruz.
-  KittensRecordSet: #recordsetgrup seciyoruz record olusturmamiz gerekior (route53 rrecord set group seciyoruz)
+          HostedZoneId: !Ref DomainName 
+      ValidationMethod: DNS 
+  KittensRecordSet: 
     Type: AWS::Route53::RecordSetGroup
     Properties:
       HostedZoneId: !Ref DomainName 
@@ -46,9 +46,9 @@ Resources:
       - Name: !Ref KittensDomainName
         Type: A 
         AliasTarget:
-          HostedZoneId: Z2FDTNDATAQYW2 #cloudfround resource olarak kullanicaksa AWS bu id yi kullanmamizi istiyor
-          DNSName: !GetAtt KittensCloudfront.DomainName #cloudfrontisminin domain nameini alacagiz
-  KittensCloudfront: #Cloudfrontdistribution seciyoruz
+          HostedZoneId: Z2FDTNDATAQYW2 
+          DNSName: !GetAtt KittensCloudfront.DomainName 
+  KittensCloudfront: 
     Type: AWS::CloudFront::Distribution
     Properties:
       DistributionConfig:
@@ -56,28 +56,28 @@ Resources:
         Aliases:
           - !Ref KittensDomainName
         DefaultCacheBehavior: 
-          AllowedMethods: #cloudfront olusturturken de kullanalim diye sectigimiz metodlar bunlar
+          AllowedMethods: 
             - GET
             - HEAD 
-          Compress: true #SIKISTIRMA olsun diyoruz
+          Compress: true 
           ForwardedValues:
             QueryString: true
             Cookies:
-              Forward: none #forwardlama istemiyoruz
+              Forward: none 
           TargetOriginId: KittensOrigin
-          ViewerProtocolPolicy: allow-all #http ve https kullanabilleim diye allw-all diyoruz
-        DefaultRootObject: index.html #root olarak sayfamizin acilmaisini istedigimiz sekli/cloudfrontta bunu beliriyoruz 
+          ViewerProtocolPolicy: allow-all 
+        DefaultRootObject: index.html  
         Enabled: true
-        HttpVersion: 'http2' #consolda da gormustk bunun nasil oldugunu, 2 secenek var http1.1 ve hhtp2 diye biz 2yisectik
+        HttpVersion: 'http2' 
         Origins:
-        - DomainName: !Select [2, !Split ["/", !GetAtt KittensBucket.WebsiteURL]] #s3 bucket normalde originimizdi bastaki https:// olmadan geri kalan ksimi secmemiz icin bu kodu kullaniyoruz
-          Id: KittensOrigin #yukarda kullandigimi target origin id deki ismi burda da kullaniyoruz
+        - DomainName: !Select [2, !Split ["/", !GetAtt KittensBucket.WebsiteURL]] 
+          Id: KittensOrigin 
           CustomOriginConfig:
             OriginProtocolPolicy: http-only
-        PriceClass: PriceClass_All #hepsni sececegiz tum bolgelerden erisilebilsin 
+        PriceClass: PriceClass_All 
         ViewerCertificate:
-          AcmCertificateArn: !Ref KittensCertificate #yukarda olusturdugumuz certificate ref yapip cagiriyoruz
-          SslSupportMethod: sni-only #tavsiye edileni yapiyoruz
+          AcmCertificateArn: !Ref KittensCertificate 
+          SslSupportMethod: sni-only 
           
 Outputs:
   BucketName: 
